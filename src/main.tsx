@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import './index.css'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import Root from './routes/root';
+import KonvaCanvas from './routes/react-konva';
 
 const router = createBrowserRouter([
   {
@@ -11,7 +12,7 @@ const router = createBrowserRouter([
   },
   {
     path: "react-konva",
-    element: <></>
+    element: <KonvaCanvas/>
   },
   {
     path: "fabric-js",
