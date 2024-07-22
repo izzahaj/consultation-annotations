@@ -8,16 +8,6 @@ import { Rect as RectShape } from "konva/lib/shapes/Rect";
 import { Image as ImageShape } from "konva/lib/shapes/Image";
 import useImage from "use-image";
 
-type CanvasToolbarProps = {
-  tool: string,
-  handleTool: (event: React.MouseEvent<HTMLElement>, value: string | null) => void,
-  strokeWidth: number,
-  handleStrokeWidth: (event: SelectChangeEvent) => void,
-  stroke: string,
-  handleStroke: (event: React.MouseEvent<HTMLElement>, value: string | null) => void,
-  handleImage: (event: React.ChangeEvent<HTMLInputElement>) => void,
-};
-
 const strokeColors = ["black", "red", "yellow", "orange", "brown", "blue", "green", "grey", "lightblue", "limegreen", "pink", "purple"]
 const strokeWidths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const tools = [
@@ -55,8 +45,20 @@ const VisuallyHiddenInput = styled('input')({
   width: 1,
 });
 
+type CanvasToolbarProps = {
+  tool: string,
+  handleTool: (event: React.MouseEvent<HTMLElement>, value: string | null) => void,
+  strokeWidth: number,
+  handleStrokeWidth: (event: SelectChangeEvent) => void,
+  stroke: string,
+  handleStroke: (event: React.MouseEvent<HTMLElement>, value: string | null) => void,
+  handleImage: (event: React.ChangeEvent<HTMLInputElement>) => void,
+  handleLoad: (event: React.MouseEvent<HTMLButtonElement>) => void,
+  handleSave: (event: React.MouseEvent<HTMLButtonElement>) => void
+};
+
 const CanvasToolbar = (props: CanvasToolbarProps) => {
-  const { tool, handleTool, strokeWidth, handleStrokeWidth, stroke, handleStroke, handleImage } = props;
+  const { tool, handleTool, strokeWidth, handleStrokeWidth, stroke, handleStroke, handleImage, handleLoad, handleSave } = props;
 
   return (
     <Stack rowGap={2}>
@@ -89,7 +91,7 @@ const CanvasToolbar = (props: CanvasToolbarProps) => {
         </ToggleButtonGroup>
       </Box>
       <Box>
-        <FormControl sx={{ minWidth: 200}}>
+        <FormControl sx={{ minWidth: 100}}>
           <InputLabel id="strokeWidthLabel">Stroke width</InputLabel>
           <Select
             labelId="strokeWidthLabel"
@@ -109,7 +111,6 @@ const CanvasToolbar = (props: CanvasToolbarProps) => {
           component="label"
           role={undefined}
           variant="contained"
-          tabIndex={-1}
           color="secondary"
           startIcon={<InsertPhoto />}
         >
@@ -117,11 +118,22 @@ const CanvasToolbar = (props: CanvasToolbarProps) => {
           <VisuallyHiddenInput type="file" accept="image/*" onChange={handleImage} />
         </Button>
       </Box>
-      <Box>
-        <Button>
-          
+      <Stack flexDirection="row" columnGap={1}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleLoad}
+        >
+          Load Sketch
         </Button>
-      </Box>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleSave}
+        >
+          Save Sketch
+        </Button>
+      </Stack>
     </Stack>
   );
 };
@@ -138,7 +150,6 @@ type DrawingCanvasProps = {
 
 const DrawingCanvas = (props: DrawingCanvasProps) => {
   const { onMouseDown, onMouseMove, onMouseUp, lines, straightLines, rectangles, images } = props;
-  // TODO: Try to serialize the stage to JSON and import+edit an exising stage/canvas
   const stageRef = useRef(null);
 
   return (
@@ -152,7 +163,7 @@ const DrawingCanvas = (props: DrawingCanvasProps) => {
         onMouseup={onMouseUp}
       >
         <Layer>
-          {lines.map((line, i) => (
+          {lines?.map((line, i) => (
             <Line
               key={i}
               points={line.points}
@@ -167,7 +178,7 @@ const DrawingCanvas = (props: DrawingCanvasProps) => {
               draggable
             />
           ))}
-          {straightLines.map((straightLine, i) => (
+          {straightLines?.map((straightLine, i) => (
             <Line
               key={i}
               points={straightLine.points}
@@ -182,7 +193,7 @@ const DrawingCanvas = (props: DrawingCanvasProps) => {
               draggable
             />
           ))}
-          {rectangles.map((rectangle, i) => (
+          {rectangles?.map((rectangle, i) => (
             <Rect
               key={i}
               x={rectangle.x}
@@ -195,12 +206,10 @@ const DrawingCanvas = (props: DrawingCanvasProps) => {
               draggable
             />
           ))}
-          {images.map((image, i) => (
+          {images?.map((image, i) => (
             <URLImage
               key={i}
               src={image.src}
-              // x={image.x}
-              // y={image.y}
             />
           ))}
         </Layer>
@@ -211,7 +220,7 @@ const DrawingCanvas = (props: DrawingCanvasProps) => {
 
 const URLImage = ({ src }) => {
   const [image] = useImage(src);
-  return <Image image={image} />;
+  return <Image image={image} scaleX={0.2} scaleY={0.2}/>;
 }
 
 export default function KonvaCanvas() {
@@ -219,11 +228,43 @@ export default function KonvaCanvas() {
   const [strokeWidth, setStrokeWidth] = useState(2);
   const [stroke, setStroke] = useState("black"); // line colour 
   const isDrawing = useRef(false);
-  // Lines and shapes state; what should be serialized and saved to the DB
+  // Lines and shapes state; what should be serialized and saved
   const [lines, setLines] = useState<LineShape<LineConfig>[]>([]);
   const [rectangles, setRectangles] = useState<RectShape[]>([]);
   const [straightLines, setStraightLines] = useState<LineShape<LineConfig>[]>([]);
   const [images, setImages] = useState<ImageShape[]>([]);
+
+  const handleLoad = () => {
+    const savedDataString = window.localStorage.getItem("canvas");
+
+    if (!savedDataString) {
+      console.log("No existing canvas");
+      return;
+    }
+
+    const savedData = JSON.parse(savedDataString);
+    console.log("canvas loaded");
+    console.log(savedData);
+
+    setLines(savedData.lines);
+    setRectangles(savedData.rectangles);
+    setStraightLines(savedData.straightLines);
+    setImages(savedData.images);
+  };
+
+  const handleSave = () => {
+    const data = {
+      lines,
+      rectangles,
+      straightLines,
+      images
+    };
+
+    const stringData = JSON.stringify(data);
+    window.localStorage.setItem("canvas", stringData);
+    console.log("canvas saved");
+    console.log(stringData);
+  };
 
   const handleImage = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.item(0);
@@ -234,7 +275,8 @@ export default function KonvaCanvas() {
       setImages([
         ...images,
         {
-          src: url
+          src: url,
+
         }
       ]);
     }
@@ -367,6 +409,8 @@ export default function KonvaCanvas() {
             stroke={stroke}
             handleStroke={handleStroke}
             handleImage={handleImage}
+            handleLoad={handleLoad}
+            handleSave={handleSave}
           />
         </Grid>
         <Grid item xs={9}>
@@ -388,4 +432,5 @@ export default function KonvaCanvas() {
 
 // ??
 // suggestion: serialize state of Stage component to JSON and save in database --> use this to generate stage from the state so can still edit
+// is this ok for performance?
 // how to handle existing vectors from prev system?
